@@ -1,0 +1,6 @@
+# Ignore VOC
+VOC2012/
+geckodriver
+index.js
+test*
+
