@@ -32,34 +32,45 @@ connection.query("select record_id, text from omeka_element_texts", function(err
 		if(!bool) continue;
         var manifestJsonData = JSON.parse(omekaElementData[index][7]);
         var manifestUrl = manifestJsonData['on'][0]['within']['@id'];
+		var imageSize = getImageSize(manifestUrl);
 		var imageName = getImageName(manifestUrl);
 		var annotationText = manifestJsonData['resource'][0]['chars'].replace(/(?:<p>)|(?:<\/p>)/g, "");     
 		var coordinate = manifestJsonData['on'][0]['selector']['default']['value'].replace(/(?:xywh=)/g, "");
 		if(typeof(data[imageName]) === "undefined"){
 		  var values = [];
-		  values.push({'annotation': annotationText, 'coordinate': coordinate});
+		  values.push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
 		  data[imageName] = values;
 		}else{
-		  data[imageName].push({'annotation': annotationText, 'coordinate': coordinate});
+		  data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
 		}
 	console.log(data);
   }
  }
 });
 
+function getImageSize(manifestUrl){
+  var imageSize = {};
+  var response = request('GET', manifestUrl);
+  if(!response.error && response.statusCode === 200){
+	var jsonData = JSON.parse(response.body.toString());
+	imageSize['height'] = jsonData['sequences'][0]['canvases'][0]['height'];
+	imageSize['width'] = jsonData['sequences'][0]['canvases'][0]['width'];
+	return imageSize;
+  }
+
+}
+
 function exportXML(data){
   for(key in data){
 	var annotations = [];
-	var object = [];
     var builder = new xml2js.Builder();
     var fileName = key;
 	var annotationDataSet = data[key];
-	var parts = [];
+    annotations.push({folder: 'VOC2012'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
 	for(index in annotationDataSet){
 	  var coordinate = annotationDataSet[index]['coordinate'].split(',');
-	  parts.push({part: {name: annotationDataSet[index]['annotation'], bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+	  annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
 	}
-    annotations.push({folder: 'VOC2012'}, {filename: fileName}, {object: parts});
     var xml = builder.buildObject({annotation: annotations});
     fs.writeFile('./VOC2012/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
 	  console.log('exported');
