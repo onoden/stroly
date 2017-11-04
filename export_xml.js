@@ -1,10 +1,11 @@
 var request = require('sync-request');
 var xml2js = require('xml2js');
 var fs = require('fs');
+//var MySql = require('sync-mysql');
+var mysql = require('mysql');
 
 
 /* connect mysql server */
-var mysql = require('mysql');
 var connection = mysql.createConnection({
   host: 'localhost',
   user: 'kyoino',
@@ -12,7 +13,19 @@ var connection = mysql.createConnection({
   database: 'omeka'
 });
 
-connection.query("select record_id, text from omeka_element_texts", function(err, result, fields){
+/*
+var mysql = require('mysql');
+var connection = new MySql({
+  host: '192.168.1.47',
+  user: 'kyoino',
+  password: 'kyoino039',
+  database: 'omeka'
+});
+
+var limitNum = 1000;
+var offsetNum = 0;
+while(true){
+  var result = connection.query('select text from omeka_element_texts limit ? offset ?', [limitNum, offsetNum]);
   rowData = JSON.parse(JSON.stringify(result));
   var omekaElementData = refactorData(rowData);
   var data = [];
@@ -20,6 +33,43 @@ connection.query("select record_id, text from omeka_element_texts", function(err
 	console.log('key数: ' + Object.keys(data).length)
 	if(Object.keys(data).length == 10){
 	  exportXML(data);
+	  var numData = 0;
+	  for(key in data){
+	    numData += data[key].length;
+	  }
+	  console.log(numData);
+	  return;
+	}
+    if(omekaElementData[index].length == 8){
+		var bool = isJSON(omekaElementData[index][7]);
+		if(!bool) continue;
+        var manifestJsonData = JSON.parse(omekaElementData[index][7]);
+        var manifestUrl = manifestJsonData['on'][0]['within']['@id'];
+		var imageSize = getImageSize(manifestUrl);
+		var imageName = getImageName(manifestUrl);
+		var annotationText = manifestJsonData['resource'][0]['chars'].replace(/(?:<p>)|(?:<\/p>)/g, "");     
+		var coordinate = manifestJsonData['on'][0]['selector']['default']['value'].replace(/(?:xywh=)/g, "");
+		if(typeof(data[imageName]) === "undefined"){
+		  var values = [];
+		  values.push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
+		  data[imageName] = values;
+		}else{
+		  data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
+		}
+	console.log(data);
+  }
+ }
+}*/
+
+connection.query("select record_id, text from omeka_element_texts", function(err, result, fields){
+  rowData = JSON.parse(JSON.stringify(result));
+  var omekaElementData = refactorData(rowData);
+  var data = [];
+  for(index in omekaElementData){
+	console.log('key数: ' + Object.keys(data).length)
+    if(Object.keys(data).length == 5){
+	  var sortedData = sortByNumberOfAnnotations(data);
+	  exportXML(sortedData);
 	  var numData = 0;
 	  for(key in data){
 	    numData += data[key].length;
@@ -116,5 +166,25 @@ function isJSON(arg){
   } catch (e) {
     return false;
   }
+}
+
+function sortByNumberOfAnnotations(data){
+  var ary = [];
+  for(key in data){
+    var hash = {};
+	hash[key] = data[key];
+	ary.push(hash);
+  }
+  var length = ary.length;
+  for(var i=0; i<length; i++){
+    for(var num=i+1; num<length; num++){
+	  var tmp = ary[i];
+	  if(Object.values(ary[i])[0].length < Object.values(ary[num])[0].length){
+	    ary[i] = ary[num];
+		ary[num] = tmp;
+	  }
+	}
+  }
+  return ary;
 }
 

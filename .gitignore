@@ -1,6 +1,8 @@
 # Ignore VOC
-VOC2012/
+Test/
+Training/
 geckodriver
 index.js
 test*
+influx.js
 
