@@ -1,7 +1,6 @@
 var request = require('sync-request');
 var xml2js = require('xml2js');
 var fs = require('fs');
-//var MySql = require('sync-mysql');
 var mysql = require('mysql');
 
 
@@ -13,90 +12,63 @@ var connection = mysql.createConnection({
   database: 'omeka'
 });
 
-/*
-var mysql = require('mysql');
+
+/*var MySql = require('sync-mysql');
 var connection = new MySql({
   host: '192.168.1.47',
   user: 'kyoino',
   password: 'kyoino039',
   database: 'omeka'
-});
+});*/
 
-var limitNum = 1000;
-var offsetNum = 0;
-while(true){
-  var result = connection.query('select text from omeka_element_texts limit ? offset ?', [limitNum, offsetNum]);
+//var limitNum = 10000;
+//var offsetNum = 0;
+//var result = connection.query('select record_id, text from omeka_element_texts limit ? offset ?', [limitNum, offsetNum]);
+
+
+
+
+connection.query("select record_id, text from omeka_element_texts where text like '{%'", function(err, result, fields){
   rowData = JSON.parse(JSON.stringify(result));
-  var omekaElementData = refactorData(rowData);
+  var annotationJsonDataSet = getAnnotationJsonDataSet(rowData);		
   var data = [];
-  for(index in omekaElementData){
-	console.log('key数: ' + Object.keys(data).length)
-	if(Object.keys(data).length == 10){
-	  exportXML(data);
-	  var numData = 0;
-	  for(key in data){
-	    numData += data[key].length;
-	  }
-	  console.log(numData);
-	  return;
-	}
-    if(omekaElementData[index].length == 8){
-		var bool = isJSON(omekaElementData[index][7]);
-		if(!bool) continue;
-        var manifestJsonData = JSON.parse(omekaElementData[index][7]);
-        var manifestUrl = manifestJsonData['on'][0]['within']['@id'];
-		var imageSize = getImageSize(manifestUrl);
-		var imageName = getImageName(manifestUrl);
-		var annotationText = manifestJsonData['resource'][0]['chars'].replace(/(?:<p>)|(?:<\/p>)/g, "");     
-		var coordinate = manifestJsonData['on'][0]['selector']['default']['value'].replace(/(?:xywh=)/g, "");
-		if(typeof(data[imageName]) === "undefined"){
-		  var values = [];
-		  values.push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
-		  data[imageName] = values;
-		}else{
-		  data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
-		}
+  for(index in annotationJsonDataSet){
+	var annotationJsonData = JSON.parse(annotationJsonDataSet[index]);
+    var manifestUrl = annotationJsonData['on'][0]['within']['@id'];
+    var imageSize = getImageSize(manifestUrl);
+    var imageName = getImageName(manifestUrl);
+    var annotationText = annotationJsonData['resource'][0]['chars'].replace(/(?:<p>)|(?:<\/p>)/g, "");     
+    var coordinate = annotationJsonData['on'][0]['selector']['default']['value'].replace(/(?:xywh=)/g, "");
+    if(typeof(data[imageName]) === "undefined"){
+      var values = [];
+      values.push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
+      data[imageName] = values;
+    }else{
+        data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
+    }
 	console.log(data);
   }
- }
-}*/
 
-connection.query("select record_id, text from omeka_element_texts", function(err, result, fields){
-  rowData = JSON.parse(JSON.stringify(result));
-  var omekaElementData = refactorData(rowData);
-  var data = [];
-  for(index in omekaElementData){
-	console.log('key数: ' + Object.keys(data).length)
-    if(Object.keys(data).length == 5){
-	  var sortedData = sortByNumberOfAnnotations(data);
-	  exportXML(sortedData);
-	  var numData = 0;
-	  for(key in data){
-	    numData += data[key].length;
-	  }
-	  console.log(numData);
-	  return;
-	}
-    if(omekaElementData[index].length == 8){
-		var bool = isJSON(omekaElementData[index][7]);
-		if(!bool) continue;
-        var manifestJsonData = JSON.parse(omekaElementData[index][7]);
-        var manifestUrl = manifestJsonData['on'][0]['within']['@id'];
-		var imageSize = getImageSize(manifestUrl);
-		var imageName = getImageName(manifestUrl);
-		var annotationText = manifestJsonData['resource'][0]['chars'].replace(/(?:<p>)|(?:<\/p>)/g, "");     
-		var coordinate = manifestJsonData['on'][0]['selector']['default']['value'].replace(/(?:xywh=)/g, "");
-		if(typeof(data[imageName]) === "undefined"){
-		  var values = [];
-		  values.push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
-		  data[imageName] = values;
-		}else{
-		  data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
-		}
-	console.log(data);
-  }
- }
+  var sortedData = sortByNumberOfAnnotations(data);
+  exportXML(sortedData);
 });
+
+function getAnnotationJsonDataSet(rowData){
+  var annotationJsonDataSet = [];
+  for(index in rowData){
+	var text = rowData[index]['text'];
+	var bool = isJSON(text);
+    if(bool){
+	  if(text.match(/^(?:{"@context":)(?:.*"chars":)(?:.*"xywh=)/)){
+	    annotationJsonDataSet.push(rowData[index]['text']);
+	  }
+	}else{
+	  continue;
+	}
+  }
+  return annotationJsonDataSet;
+}
+
 
 function getImageSize(manifestUrl){
   var imageSize = {};
@@ -105,26 +77,49 @@ function getImageSize(manifestUrl){
 	var jsonData = JSON.parse(response.body.toString());
 	imageSize['height'] = jsonData['sequences'][0]['canvases'][0]['height'];
 	imageSize['width'] = jsonData['sequences'][0]['canvases'][0]['width'];
-	return imageSize;
   }
+  return imageSize;
 
 }
 
 function exportXML(data){
-  for(key in data){
-	var annotations = [];
-    var builder = new xml2js.Builder();
-    var fileName = key;
-	var annotationDataSet = data[key];
-    annotations.push({folder: 'VOC2012'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
-	for(index in annotationDataSet){
-	  var coordinate = annotationDataSet[index]['coordinate'].split(',');
-	  annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+  console.log('exportXML function start...');
+  for(index in data){
+    if(index % 2 == 0){
+      for(key in data[index]){
+	    var annotations = [];
+        var builder = new xml2js.Builder();
+        var fileName = key;
+	    var annotationDataSet = data[index][key];
+        annotations.push({folder: 'Training'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
+	    for(index in annotationDataSet){
+	      var coordinate = annotationDataSet[index]['coordinate'].split(',');
+	      annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+	    }
+        var xml = builder.buildObject({annotation: annotations});
+        fs.writeFile('./Training/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
+		console.log('annotation数:'+annotationDataSet.length);
+	    console.log('exported');
+	  });
+     }
+	}else{
+      for(key in data[index]){
+	    var annotations = [];
+        var builder = new xml2js.Builder();
+        var fileName = key;
+	    var annotationDataSet = data[index][key];
+        annotations.push({folder: 'Test'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
+	    for(index in annotationDataSet){
+	      var coordinate = annotationDataSet[index]['coordinate'].split(',');
+	      annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+	    }
+        var xml = builder.buildObject({annotation: annotations});
+        fs.writeFile('./Test/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
+		console.log('annotation数:'+annotationDataSet.length);
+	    console.log('exported');
+	  });
+     }
 	}
-    var xml = builder.buildObject({annotation: annotations});
-    fs.writeFile('./VOC2012/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
-	  console.log('exported');
-	});
   }
 }
 
@@ -169,6 +164,7 @@ function isJSON(arg){
 }
 
 function sortByNumberOfAnnotations(data){
+  console.log('sortByNumberOfAnnotations function start....');
   var ary = [];
   for(key in data){
     var hash = {};
