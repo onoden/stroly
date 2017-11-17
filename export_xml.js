@@ -3,7 +3,6 @@ var xml2js = require('xml2js');
 var fs = require('fs');
 var mysql = require('mysql');
 
-
 /* connect mysql server */
 var connection = mysql.createConnection({
   host: 'localhost',
@@ -13,27 +12,12 @@ var connection = mysql.createConnection({
 });
 
 
-/*var MySql = require('sync-mysql');
-var connection = new MySql({
-  host: '192.168.1.47',
-  user: 'kyoino',
-  password: 'kyoino039',
-  database: 'omeka'
-});*/
-
-//var limitNum = 10000;
-//var offsetNum = 0;
-//var result = connection.query('select record_id, text from omeka_element_texts limit ? offset ?', [limitNum, offsetNum]);
-
-
-
-
 connection.query("select record_id, text from omeka_element_texts where text like '{%'", function(err, result, fields){
   rowData = JSON.parse(JSON.stringify(result));
   var annotationJsonDataSet = getAnnotationJsonDataSet(rowData);		
   var data = [];
   for(index in annotationJsonDataSet){
-	var annotationJsonData = JSON.parse(annotationJsonDataSet[index]);
+	  var annotationJsonData = JSON.parse(annotationJsonDataSet[index]);
     var manifestUrl = annotationJsonData['on'][0]['within']['@id'];
     var imageSize = getImageSize(manifestUrl);
     var imageName = getImageName(manifestUrl);
@@ -47,6 +31,9 @@ connection.query("select record_id, text from omeka_element_texts where text lik
         data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
     }
 	console.log(data);
+	if(Object.keys(data).length == 2){
+	  break;
+	}
   }
 
   var sortedData = sortByNumberOfAnnotations(data);
@@ -84,45 +71,41 @@ function getImageSize(manifestUrl){
 
 function exportXML(data){
   console.log('exportXML function start...');
-  for(index in data){
-    if(index % 2 == 0){
-      for(key in data[index]){
-	    var annotations = [];
-        var builder = new xml2js.Builder();
-        var fileName = key;
-	    var annotationDataSet = data[index][key];
-        annotations.push({folder: 'Training'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
-	    for(index in annotationDataSet){
-	      var coordinate = annotationDataSet[index]['coordinate'].split(',');
-	      annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
-	    }
-        var xml = builder.buildObject({annotation: annotations});
-        fs.writeFile('./Training/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
-		console.log('annotation数:'+annotationDataSet.length);
-	    console.log('exported');
-	  });
-     }
-	}else{
-      for(key in data[index]){
-	    var annotations = [];
-        var builder = new xml2js.Builder();
-        var fileName = key;
-	    var annotationDataSet = data[index][key];
-        annotations.push({folder: 'Test'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
-	    for(index in annotationDataSet){
-	      var coordinate = annotationDataSet[index]['coordinate'].split(',');
-	      annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
-	    }
-        var xml = builder.buildObject({annotation: annotations});
-        fs.writeFile('./Test/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
-		console.log('annotation数:'+annotationDataSet.length);
-	    console.log('exported');
-	  });
-     }
-	}
+  for(key in data[index]){
+	  var annotations = [];
+		var annoCount = 0;
+    var builder = new xml2js.Builder();
+    var fileName = key;
+	  var annotationDataSet = data[index][key];
+    annotations.push({folder: 'Test'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
+	  for(index in annotationDataSet){
+	    var coordinate = annotationDataSet[index]['coordinate'].split(',');
+	    annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+	  }
+		annoCount += annotationDataSet.length;
+		if(annoCount <= 3000){
+		  createXML(builder, fileName, annotations, 'Training');
+		}else{
+			createXML(builder, fileName, annotations, 'Test');
+		}
   }
 }
 
+function createHeader(folderName, annotationDataSet){
+  annotations.push({folder: folderName}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
+}
+
+function createBody(annotationData){
+  var coordinate = annotationData['coordinate'].split(',');
+	annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
+}
+
+function createXML(builder, folderName, fileName, annotations){
+  var xml = builder.buildObject({annotation: annotations});
+  fs.writeFile('./'+folderName+'Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
+	  console.log('exported');
+	});
+}
 
 function refactorData(rowData){
   array = [];
