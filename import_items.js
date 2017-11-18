@@ -1,7 +1,6 @@
 var webdriver = require('selenium-webdriver');
 var fs = require('fs');
 var sleep = require('sleep-async');
-var driver;
  
 driver = new webdriver.Builder()
 .forBrowser('firefox')
@@ -29,18 +28,20 @@ driver.get('http://192.168.1.47/admin/users/login').then(function(){
 });
 
 
+var driver = new webdriver.Builder().forBrowser('firefox').build();
 
-function loginToOmeka(){
+
+function loginToOmeka(driver, webdriver){
 	driver.findElement(webdriver.By.xpath('//input[@id="username"]')).sendKeys('kyoino');
         driver.findElement(webdriver.By.xpath('//input[@id="password"]')).sendKeys('kyoino039');
         driver.findElement(webdriver.By.xpath('//input[@id="submit"]')).click();   
 }
 
-function clickButtonIIIFToolkit(){
+function clickButtonIIIFToolkit(driver, webdriver){
 	driver.findElement(webdriver.By.xpath('//ul[@class="navigation"]/li[6]')).click();
 }
 
-function selectMethodToImportItems(){
+function selectMethodToImportItems(driver, webdriver){
 	driver.findElement(webdriver.By.xpath('//input[@id="items_import_type-1"]')).click();
         driver.findElement(webdriver.By.xpath('//input[@id="items_import_source-1"]')).click();
         driver.findElement(webdriver.By.xpath('//input[@id="items_preview_size-0"]')).click();
