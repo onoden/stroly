@@ -1,3 +1,4 @@
+/*Test内のAnnotationデータ(xml形式)と予測データ(json形式)の結果を比較するために、xmlをjson形式に変換する*/
 var fs = require('fs');
 var xml2js = require('xml2js');
 var jsonfile = require('jsonfile');
