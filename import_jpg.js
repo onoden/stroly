@@ -1,3 +1,4 @@
+/*イメージサーバ内からjpg画像をシステム内にインポートする*/
 var request = require('sync-request');
 var fs = require('fs');
 var sprintf = require('sprintf-js').sprintf;
