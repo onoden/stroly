@@ -44,8 +44,6 @@ function getRecordId(fileName){
 	try{
 		var recordId = result[0]['record_id'];
 	}catch(e){
-		console.log(result);
-		console.log(fileName);
 		return 'undefined';
 	}
 	return recordId;
