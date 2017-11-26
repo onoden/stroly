@@ -5,4 +5,5 @@ geckodriver
 index.js
 test*
 influx.js
+ocr/
 
