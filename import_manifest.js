@@ -1,4 +1,3 @@
-var express = require('express');
 var fs = require('fs-extra');
 var request = require('sync-request');
 var sprintf = require('sprintf-js').sprintf;
