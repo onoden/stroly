@@ -19,40 +19,54 @@ async.series([
 		/*Omekaへログインし、予測データをインポートする画面へ遷移させる*/
 		seleniumDriver.loginToOmeka()
 	  .then(seleniumDriver.clickButton('//nav[@id="content-nav"]/ul[@class="navigation"]/li[2]'))
-		.then(seleniumDriver.clickButton('//a[@class="add button small green"]'))
-		.then(seleniumDriver.sendParam('Annotation: "example"', '//textarea[@id="Elements-50-0-text"]'))
-		.then(seleniumDriver.sendParam('estimation', '//textarea[@id="Elements-37-0-text"]'))
-		.then(seleniumDriver.clickButton('//ul[@id="section-nav"]/li[2]'));
-		callback();
-	},
-	function(callback){
-		/*Annotationのメタデータを定義する*/
-		seleniumDriver.clickButton('//select[@id="item-type"]/option[2]');
-		seleniumDriver.sleep(2000);
-		/*On Canvas*/
-		seleniumDriver.sendParam(data[fileName], '//input[@id="Elements-60-0-text"]');
-		var regions = json['regions'];
-		var regionFormat = refactorRegionFormat(regions[0]);
-		/*Selector*/
-		seleniumDriver.sendParam(setSVGData(regions[0]), '//textarea[@id="Elements-61-0-text"]');
-		/*Text*/
-		seleniumDriver.sendParam(regions[0]['text'], '//textarea[@id="Elements-1-0-text"]');
-		seleniumDriver.clickButton('//input[@id="Elements-1-0-html"]');
-		seleniumDriver.sendParam(regionFormat, '//textarea[@id="Elements-62-0-text"]');
-		/*AnnotationのJsonデータを定義する*/
-		seleniumDriver.clickButton('//ul[@id="section-nav"]/li[3]');
-		seleniumDriver.sendParam(setJsonData(regions[0]['text'], regions[0]), '//textarea[@id="Elements-56-0-text"]');
-		callback();
-	},
-	function(callback){
-		/*予測データをインポートする*/
-		//seleniumDriver.clickButton('//input[@id="add_item"]');
+		.then(seleniumDriver.clickButton('//a[@class="add button small green"]'));
 		callback();
 	}
+], function(err, results){
+		if(err) throw err;
+		var regions = json['regions'];
+		async.eachSeries(regions, function(region, next){
+			setMetaData(region, data)
+			.then(clickAddItemButton())
+			.then(seleniumDriver.clickButton('//a[@class="add button small green"]'));
+			next();
+		}, function(err, results){
+				if(err) throw err;
+		});
+});
 				
-]);
+function setMetaData(region, data){
+	return new Promise(function(){
+		seleniumDriver.sendParam('Annotation:' + region['text'], '//textarea[@id="Elements-50-0-text"]');
+		seleniumDriver.sendParam('estimation', '//textarea[@id="Elements-37-0-text"]');
+		seleniumDriver.clickButton('//ul[@id="section-nav"]/li[2]');
+	/*Annotationのメタデータを定義する*/
+	seleniumDriver.clickButton('//select[@id="item-type"]/option[2]');
+	seleniumDriver.sleep(2000);
+	/*On Canvas*/
+	seleniumDriver.sendParam(data[fileName], '//input[@id="Elements-60-0-text"]');
+	var regionFormat = refactorRegionFormat(region);
+	/*Selector*/
+	seleniumDriver.sendParam(setSVGData(region), '//textarea[@id="Elements-61-0-text"]');
+	/*Text*/
+	seleniumDriver.sendParam(region['text'], '//textarea[@id="Elements-1-0-text"]');
+	seleniumDriver.clickButton('//input[@id="Elements-1-0-html"]');
+	seleniumDriver.sendParam(regionFormat, '//textarea[@id="Elements-62-0-text"]');
+	/*AnnotationのJsonデータを定義する*/
+	seleniumDriver.clickButton('//ul[@id="section-nav"]/li[3]');
+	seleniumDriver.sendParam(setJsonData(region['text'], region), '//textarea[@id="Elements-56-0-text"]');
+	/*Tag*/
+	seleniumDriver.clickButton('//ul[@id="section-nav"]/li[5]');
+	seleniumDriver.sendParam('estimation', '//input[@id="tags"]');
+	seleniumDriver.clickButton('//input[@id="add-tags-button"]');
+	});
+}
 
-
+function clickAddItemButton(){
+	return new Promise(function(){
+		seleniumDriver.clickButton('//input[@id="add_item"]');
+	});
+}
 
 function refactorRegionFormat(region){
 	var width = String(parseInt(region['xmax']) - parseInt(region['xmin']));
