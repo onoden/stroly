@@ -2,7 +2,7 @@
 var request = require('sync-request');
 var fs = require('fs');
 var sprintf = require('sprintf-js').sprintf;
-
+var pathPrefix = './VOC2012/JPEGImages/';
 var i = 0;
 
 while(true){
@@ -13,8 +13,8 @@ while(true){
 
   if(!response.error && response.statusCode === 200){
     var imageName = url.replace(/(?:http:\/\/192.168.1.47:5004\/images\/)|(?:\/full\/full\/0\/default\.jpg)/g, "");
-	var body = response.body;
-    fs.writeFileSync('./VOC2012/JPEGImages/' + imageName, body, 'binary');
+		var body = response.body;
+    fs.writeFileSync(pathPrefix + imageName, body, 'binary');
 	console.log('インポート');
   }else{
 	console.log('インポート完了');

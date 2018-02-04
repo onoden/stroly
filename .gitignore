@@ -6,4 +6,6 @@ index.js
 test*
 influx.js
 ocr/
+masked_image.py
+omeka.dmp
 

@@ -30,10 +30,11 @@ connection.query("select record_id, text from omeka_element_texts where text lik
     }else{
         data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
     }
-	console.log(data);
+		console.log(imageName + ":" + data[imageName][annotation]);
+		/*
 	if(Object.keys(data).length == 2){
 	  break;
-	}
+	}*/
   }
 
   var sortedData = sortByNumberOfAnnotations(data);
