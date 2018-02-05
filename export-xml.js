@@ -30,9 +30,9 @@ connection.query("select record_id, text from omeka_element_texts where text lik
     }else{
         data[imageName].push({'annotation': annotationText, 'coordinate': coordinate, 'imageSize': imageSize});
     }
-		console.log(imageName + ":" + data[imageName][annotation]);
-		/*
-	if(Object.keys(data).length == 2){
+		console.log(data);
+/*		
+	if(Object.keys(data).length == 5){
 	  break;
 	}*/
   }
@@ -72,22 +72,23 @@ function getImageSize(manifestUrl){
 
 function exportXML(data){
   console.log('exportXML function start...');
-  for(key in data[index]){
+	var annoCount = 0;
+  for(index in data){
 	  var annotations = [];
-		var annoCount = 0;
     var builder = new xml2js.Builder();
-    var fileName = key;
-	  var annotationDataSet = data[index][key];
+    var fileName = Object.keys(data[index])[0];
+	  var annotationDataSet = data[index][fileName];
     annotations.push({folder: 'Test'}, {filename: fileName}, {size: {'height': annotationDataSet[0]['imageSize']['height'], 'width': annotationDataSet[0]['imageSize']['width']}});
 	  for(index in annotationDataSet){
 	    var coordinate = annotationDataSet[index]['coordinate'].split(',');
 	    annotations.push({object: {name: 'map_text', bandbox: {xmin: coordinate[0], ymin: coordinate[1], xmax: parseInt(coordinate[0]) + parseInt(coordinate[2]), ymax: parseInt(coordinate[1]) + parseInt(coordinate[3])}}});
 	  }
 		annoCount += annotationDataSet.length;
+		console.log('annoCount:' + annoCount);
 		if(annoCount <= 3000){
-		  createXML(builder, fileName, annotations, 'Training');
+		  createXML(builder, 'Training', fileName, annotations);
 		}else{
-			createXML(builder, fileName, annotations, 'Test');
+			createXML(builder, 'Test', fileName, annotations);
 		}
   }
 }
@@ -103,8 +104,13 @@ function createBody(annotationData){
 
 function createXML(builder, folderName, fileName, annotations){
   var xml = builder.buildObject({annotation: annotations});
-  fs.writeFile('./'+folderName+'Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
-	  console.log('exported');
+	var count = annotations.length - 3;
+	var data = fileName + ':' + count + '\n';
+	fs.appendFile('./annotation-log.txt', data, function(err){
+		console.log('ログファイルに書き込み');
+    fs.writeFile('./'+folderName+'/Annotations/' + fileName.replace(/(?:\.jpg)/g, "") + '.xml', xml, function(err){
+	    console.log('exported');
+		});
 	});
 }
 

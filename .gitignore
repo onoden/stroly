@@ -8,4 +8,5 @@ influx.js
 ocr/
 masked_image.py
 omeka.dmp
+annotation-log.txt
 
